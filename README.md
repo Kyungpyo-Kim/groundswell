@@ -85,12 +85,10 @@ This file contains the full session state: tech context, all Q&A rounds, extract
 ### Claude Code / OpenCode
 
 ```bash
-# Copy SKILL.md into your skills directory
-mkdir -p ~/.claude/skills/groundswell
-cp SKILL.md ~/.claude/skills/groundswell/SKILL.md
+# clone groundswell into your skills directory
+cd ~/.config/opencode/skills # or ~/.claude/skills
+git clone https://github.com/Kyungpyo-Kim/groundswell.git
 ```
-
-Or use the packaged `.skill` file if your environment supports it.
 
 ---
 
@@ -112,16 +110,6 @@ Or use the packaged `.skill` file if your environment supports it.
 | 7–8   | Building swell — mostly clear, one gap remains  |
 | 9     | **Groundswell arrived** — complete and specific |
 | 10    | Perfect set — edge cases covered too            |
-
----
-
-## File structure
-
-```
-groundswell/
-├── README.md       ← you are here
-└── SKILL.md        ← the skill definition (Claude reads this)
-```
 
 ---
 
