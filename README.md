@@ -4,6 +4,8 @@
 
 **groundswell** is a Claude skill that helps developers think deeply before executing. Like a surfer reading the ocean before choosing a wave — it guides you through understanding the conditions, aligning on the right goal, removing ambiguity, and committing to action only when truly ready.
 
+This skill is used primarily in OpenCode, and was inspired by a range of skills and plugins such as superpowers, oh-my-openagent, and oh-my-codex. It was developed as a personal customization for my own workflow and preferences.
+
 ---
 
 ## Why groundswell?
@@ -43,12 +45,12 @@ Composite score = floor(average of 6). **Hard gate: does not proceed until compo
 ### Phase 3 — Drop In
 Synthesizes everything learned across all phases into a **Groundswell Summary**, asks you to confirm it, then presents 4 options:
 
-| Option | What it does |
-|--------|-------------|
-| **A) Task Plan** | Full plan with Acceptance Criteria, Definition of Done, Test Strategy, implementation options, risks |
-| **B) Drop In Now** | Skip the plan — begin implementation directly |
-| **C) Back to Phase 1** | Re-examine the goal |
-| **D) Back to Phase 2** | Resolve remaining gaps |
+| Option                 | What it does                                                                                         |
+| ---------------------- | ---------------------------------------------------------------------------------------------------- |
+| **A) Task Plan**       | Full plan with Acceptance Criteria, Definition of Done, Test Strategy, implementation options, risks |
+| **B) Drop In Now**     | Skip the plan — begin implementation directly                                                        |
+| **C) Back to Phase 1** | Re-examine the goal                                                                                  |
+| **D) Back to Phase 2** | Resolve remaining gaps                                                                               |
 
 ---
 
@@ -102,14 +104,14 @@ Or use the packaged `.skill` file if your environment supports it.
 
 ## Score calibration
 
-| Score | Meaning |
-|-------|---------|
-| 0–2 | Flat ocean — nothing to work with |
-| 3–4 | Tiny ripple — vague, nothing actionable |
-| 5–6 | Choppy chop — some content, key details missing |
-| 7–8 | Building swell — mostly clear, one gap remains |
-| 9 | **Groundswell arrived** — complete and specific |
-| 10 | Perfect set — edge cases covered too |
+| Score | Meaning                                         |
+| ----- | ----------------------------------------------- |
+| 0–2   | Flat ocean — nothing to work with               |
+| 3–4   | Tiny ripple — vague, nothing actionable         |
+| 5–6   | Choppy chop — some content, key details missing |
+| 7–8   | Building swell — mostly clear, one gap remains  |
+| 9     | **Groundswell arrived** — complete and specific |
+| 10    | Perfect set — edge cases covered too            |
 
 ---
 
