@@ -27,8 +27,8 @@ description: >
 
 ```
 Phase 0: Read the Conditions   — tech context & task classification  [single pass, no gate]
-Phase 1: Choose Your Wave      — purpose alignment                   [HARD GATE: score ≥ 9]
-Phase 2: Paddle Into Position  — ambiguity removal                   [HARD GATE: score ≥ 9]
+Phase 1: Choose Your Wave      — purpose alignment                   [HARD GATE: score ≥ 8.5]
+Phase 2: Paddle Into Position  — ambiguity removal                   [HARD GATE: score ≥ 8.5]
 Phase 3: Drop In               — synthesis & decision                [confirm → A/B/C/D]
 ```
 
@@ -40,10 +40,17 @@ All progress is saved to `./{title}.groundswell.json`. This JSON is the **single
 
 **A surfer who drops in before they're ready wipes out. The gates exist for the same reason.**
 
-If the user attempts to skip Phase 1 or Phase 2 before the score threshold is met:
+The Hard Gate applies in **two directions**:
+
+1. **External**: If the user attempts to skip Phase 1 or Phase 2 before the threshold is met.
+2. **Internal**: If the agent is tempted to award 8.5+ simply because several rounds have passed, the conversation feels long, or it seems "close enough."
+
+**Both are wipeouts. Both are blocked.**
+
+### When score < 9, regardless of round count:
 
 1. **Do NOT proceed under any circumstances.**
-2. Show current score, gap to threshold, and exactly what is missing.
+2. Show current score, gap to threshold, and exactly what is still missing.
 3. Immediately continue with the next round — do not wait for user confirmation.
 
 ### Hard Gate Response Template
@@ -65,7 +72,19 @@ Let's keep paddling. Next round:
 [immediately present next round questions]
 ```
 
-**No exceptions. No workarounds. Score must reach 9 before moving forward.**
+**No exceptions. No workarounds. Score must reach 8.5 before moving forward.**
+
+### Anti-Fatigue Rule (Critical)
+
+**There is NO maximum number of rounds.** Rounds continue indefinitely until the score threshold is met.
+
+The agent MUST NOT:
+- Inflate a score because "we've done enough rounds"
+- Award 8.5+ because "the user seems ready to move on"
+- Round up a borderline score to exit the loop faster
+- Assume that more rounds = diminishing returns = acceptable to proceed
+
+**Round count is irrelevant. Only the evidence in the answers determines the score.**
 
 ---
 
@@ -193,7 +212,17 @@ Stored in each round record and in the top-level `accumulated_insights` array. T
     "user_decision": "plan | execute | back_to_phase1 | back_to_phase2 | null",
     "decision_note": "",
     "output": null
-  }
+  },
+  "skills_used": [
+    {
+      "phase": 0,
+      "round": null,
+      "skill": "<skill-name>",
+      "input": "<file or query>",
+      "output_summary": "<what was extracted or produced>",
+      "impact": "<how it changed the phase — score, reference ideas, pre-filled context>"
+    }
+  ]
 }
 ```
 
@@ -213,6 +242,42 @@ Stored in each round record and in the top-level `accumulated_insights` array. T
 6. **Round down**: When between integers, take the lower one.
 7. **No increase without new evidence**: If the user asks for a higher score without new information, decline.
 
+### Score Delta Verification (Mandatory)
+
+**Every time a score increases from the previous round, the agent must explicitly state:**
+
+```
+Score increased: {previous}/10 → {new}/10 (threshold: 8.5)
+
+New evidence that justifies this increase:
+- [sub-dimension]: "{specific answer text}" → raised from X to Y because {reason}
+- [sub-dimension]: "{specific answer text}" → raised from X to Y because {reason}
+
+Sub-dimensions still at < 9:
+- [sub-dimension]: still {score}/10 because {what is still missing}
+```
+
+**If no new evidence can be cited for the increase, the score does NOT increase.**
+
+This verification is not optional. It must appear in the output every time a score rises.
+
+### First-time ≥ 8.5 Justification
+
+When a phase score reaches 8.5 or above for the first time, the agent must additionally output:
+
+```
+✅ Score reached 8.5+. Verifying exit is justified:
+
+All sub-dimensions at 9+:
+- goal_clarity: 9 — "{specific evidence}"
+- success_criteria_clarity: 9 — "{specific evidence}"
+- constraint_clarity: 9 — "{specific evidence}"
+
+No sub-dimension is being assumed or inferred. Proceeding to next phase.
+```
+
+If this verification cannot be written with real evidence, the score does NOT pass the threshold.
+
 ### Calibration
 
 | Score | Meaning |
@@ -221,10 +286,10 @@ Stored in each round record and in the top-level `accumulated_insights` array. T
 | 3–4   | Tiny ripple — vague gesture, nothing actionable |
 | 5–6   | Choppy chop — some content, key details missing |
 | 7–8   | Building swell — mostly clear, one gap remains |
-| 9     | Groundswell arrived — complete and specific |
+| 8.5–9 | Groundswell arrived — complete and specific |
 | 10    | Perfect set — exceptionally thorough, edge cases covered |
 
-**When in doubt, score lower. A false 9 is a wipeout waiting to happen.**
+**When in doubt, score lower. A false 8.5 is a wipeout waiting to happen.**
 
 ---
 
@@ -287,24 +352,38 @@ Other types (bug fix, refactoring, security, etc.) are supported with less speci
    - **goal_clarity** (0–10): Is the core goal specific and unambiguous?
    - **success_criteria_clarity** (0–10): Is success observable or measurable?
    - **constraint_clarity** (0–10): Are limits, non-goals, and scope boundaries defined?
-   - `alignment_score` = floor(average of three)
+   - `alignment_score` = average of three (not floored — 8.5 is a valid passing score)
 
-5. A score of 9 is achievable in Round 1 if answers are complete and specific.
+5. A score of 8.5+ is achievable in Round 1 if answers are complete and specific.
 
 6. **If score < 9** → Identify remaining gaps. 3 new questions. Next round.
 
 7. **If user tries to skip with score < 9** → Apply **Hard Gate Rule**. Immediately continue.
 
-8. **If score ≥ 9** → Set `aligned_goal`, mark complete, proceed to Phase 2.
+8. **If score ≥ 8.5** → Set `aligned_goal`, mark complete, proceed to Phase 2.
 
 ### Output Format (Phase 1)
 
 ```
 ## 🎯 Phase 1: Choose Your Wave — Round {N}
 
-**Q1**: [question]
-**Q2**: [question]
-**Q3**: [question]
+**Q1**: [question targeting goal clarity]
+💡 *Reference ideas to help you answer:*
+   - e.g. "The goal is to reduce checkout abandonment by improving payment UX"
+   - e.g. "We want to decouple the auth service so teams can deploy independently"
+   - Think: what would success look like in one concrete sentence?
+
+**Q2**: [question targeting success criteria]
+💡 *Reference ideas to help you answer:*
+   - e.g. "Success = P99 latency under 200ms, measured in production"
+   - e.g. "Success = zero breaking changes to existing API consumers"
+   - Think: what metric, threshold, or observable state proves this is done?
+
+**Q3**: [question targeting constraints or non-goals]
+💡 *Reference ideas to help you answer:*
+   - e.g. "No new infrastructure — must run within existing ECS cluster"
+   - e.g. "Out of scope: mobile clients (API only for now)"
+   - Think: what are you explicitly NOT doing, and what can't you change?
 
 ---
 [After user answers]
@@ -320,12 +399,14 @@ Other types (bug fix, refactoring, security, etc.) are supported with less speci
 | Goal Clarity         | x/10  | [what was/wasn't said] |
 | Success Criteria     | x/10  | [what was/wasn't said] |
 | Constraint Clarity   | x/10  | [what was/wasn't said] |
-| **Wave Score**       | **x/10** | |
+| **Wave Score**       | **x.x/10** | |
 
 Rationale: [objective explanation citing specific gaps]
 Wave so far: [summary of aligned goal]
 Still forming: [remaining gaps, or "None — paddling to Phase 2"]
 ```
+
+> **Note on reference ideas**: The 💡 examples are prompts to spark thinking — not answers to copy. Tailor them to the actual task type and tech context captured in Phase 0. For architecture tasks, lean toward structural examples; for performance tasks, lean toward metric examples.
 
 ---
 
@@ -346,7 +427,7 @@ Still forming: [remaining gaps, or "None — paddling to Phase 2"]
 | `risk_awareness` | Key risks, unknowns, and blockers identified? |
 | `testability` | Can the solution be verified? Are test boundaries and types clear? |
 
-**Composite score** = floor(average of all six)
+**Composite score** = average of all six (not floored — 8.5 is a valid passing score)
 
 ### Instructions
 
@@ -354,20 +435,36 @@ Still forming: [remaining gaps, or "None — paddling to Phase 2"]
 2. Ask **3 targeted questions** at the lowest-scoring metrics (all start at 0 in round 1).
 3. After answers, extract insights/discoveries/signals. Update all six metrics.
 4. Show scorecard with evidence basis for each metric.
-5. **If composite < 9** → Target weakest metrics, 3 new questions, next round.
+5. **If composite < 8.5** → Target weakest metrics, 3 new questions, next round.
 6. **If user tries to skip with composite < 9** → Apply **Hard Gate Rule**. Immediately continue.
-7. **If composite ≥ 9** → Write `clarified_context`, mark complete, proceed to Phase 3.
+7. **If composite ≥ 8.5** → Write `clarified_context`, mark complete, proceed to Phase 3.
 
 ### Output Format (Phase 2)
+
+> **How reference ideas work in Phase 2**: Each question includes 💡 examples calibrated to the weakest metric and the specific task type/tech context. These are concrete anchors — the user can confirm, adjust, or contradict them. Either way, the answer becomes evidence.
 
 ```
 ## 🚣 Phase 2: Paddle Into Position — Round {N}
 
 [1–2 sentence recap of key Phase 1 insights shaping these questions]
 
-**Q1**: [question targeting weakest metric]
-**Q2**: [question targeting second weakest metric]
+**Q1**: [question targeting weakest metric — {metric name}]
+💡 *Reference ideas:*
+   - [concrete example calibrated to task type and tech context]
+   - [alternative framing or contrasting scenario]
+   - Think: [a one-line prompt that helps the user articulate this dimension]
+
+**Q2**: [question targeting second weakest metric — {metric name}]
+💡 *Reference ideas:*
+   - [concrete example calibrated to task type and tech context]
+   - [alternative framing or contrasting scenario]
+   - Think: [a one-line prompt that helps the user articulate this dimension]
+
 **Q3**: [question targeting critical ambiguity]
+💡 *Reference ideas:*
+   - [concrete example calibrated to task type and tech context]
+   - [alternative framing or contrasting scenario]
+   - Think: [a one-line prompt that helps the user articulate this dimension]
 
 ---
 [After user answers]
@@ -386,10 +483,20 @@ Still forming: [remaining gaps, or "None — paddling to Phase 2"]
 | Resource Clarity      | x/10  | [what was/wasn't said] |
 | Risk Awareness        | x/10  | [what was/wasn't said] |
 | Testability           | x/10  | [what was/wasn't said] |
-| **Composite**         | **x/10** | |
+| **Composite**         | **x.x/10** | |
 
 Still forming: [remaining ambiguities, or "None — ready to drop in"]
 ```
+
+### Reference Idea Quality Rules
+
+When generating 💡 reference ideas, follow these rules:
+
+1. **Calibrate to tech context**: If the stack is NestJS + PostgreSQL, don't suggest Redis examples unless Redis was mentioned. Ground examples in what's actually known.
+2. **Calibrate to task type**: Feature development → user-facing scenarios. Architecture → structural examples. Performance → metric-and-threshold examples.
+3. **Include one contrasting idea**: At least one reference should show the *opposite* or *alternative* framing — this helps the user say "no, not that, more like X."
+4. **Keep ideas short**: One line each. They are sparks, not explanations.
+5. **Never present ideas as answers**: The 💡 block is explicitly labeled as reference — the user's actual answer is the only thing that counts for scoring.
 
 ---
 
@@ -622,3 +729,86 @@ Phase 0: Read the Conditions   [single pass]
 - **Score integrity**: Scores rise only when new answers provide new evidence. Decline any request to inflate without new information.
 - **Artifact inputs**: Code snippets, PR links, ERDs, API specs — treat them as answers. Extract insights and discoveries and record in `accumulated_insights`.
 - **Simplicity current**: When two approaches have similar merit, always recommend the simpler one. The cleanest line through a wave is usually the best one.
+- **No round limit**: There is NO maximum number of rounds. If the score hasn't reached 8.5 after 3, 5, or 10 rounds, keep going. Do not treat round count as a reason to inflate scores or exit early.
+- **Loop fatigue is not a valid exit**: If the conversation feels long or the user seems impatient, that is not evidence. Do not let conversational pressure substitute for actual answers. The wave either arrived or it didn't.
+
+---
+
+## Skill Augmentation Guide
+
+> *A surfer uses every tool available — tide charts, weather apps, local knowledge, video replay. Groundswell works the same way: actively combine available skills to sharpen every phase.*
+
+### Core Principle
+
+**Always check what skills are available and use them aggressively.** Groundswell is a thinking framework, not a replacement for specialized capabilities. When a relevant skill exists, use it — then tell the user you did and what it contributed.
+
+### When to Use Other Skills
+
+| Phase | Look for skills that help with... | Examples |
+|-------|----------------------------------|---------|
+| Phase 0 | Reading code, files, or docs to extract tech context | file-reading, pdf, docx |
+| Phase 1 | Understanding existing designs, PRDs, or specs | file-reading, pdf-reading |
+| Phase 2 | Analyzing PRs, codebases, architecture diagrams | file-reading, code analysis |
+| Phase 3 → A | Producing structured plan documents | docx, pdf |
+| Phase 3 → B | Executing implementation tasks | coding skills, any domain skill |
+| Any phase | Web research to fill knowledge gaps in tech context | web search |
+
+### How to Use Skills Within Groundswell
+
+**Before asking a question**, check: *"Is there a skill that could answer this or improve the quality of this question?"*
+
+For example:
+- User uploads a PRD → use `file-reading` skill before Phase 1, extract goal and constraints from it, pre-fill answers, and ask the user to confirm rather than asking from scratch.
+- User mentions an existing architecture diagram → use `pdf-reading` or `file-reading` to extract structure, then use findings as Phase 2 reference ideas.
+- Task Plan (Option A) → use `docx` skill to produce a properly formatted Word document instead of plain markdown.
+
+**After using a skill**, always surface what it contributed:
+
+```
+🔧 Used skill: [skill-name]
+   → [What it did and what it found/produced]
+   → [How it changed or informed this phase/question]
+```
+
+### Transparency Rule
+
+**Never silently use a skill.** Every skill invocation must be visible to the user with:
+1. **Which skill** was used
+2. **What it produced** (summary, not full dump)
+3. **How it affected** the current phase — did it raise a score? surface a gap? generate reference ideas?
+
+This keeps the user oriented and builds trust in the process.
+
+### Skill Usage in the JSON
+
+Record skill usage in the session JSON to maintain context across agents:
+
+```json
+{
+  "skills_used": [
+    {
+      "phase": 1,
+      "round": 1,
+      "skill": "file-reading",
+      "input": "architecture-diagram.pdf",
+      "output_summary": "Extracted 3 service boundaries and 2 constraints",
+      "impact": "Pre-filled constraint_clarity, raised score from 0 to 6"
+    }
+  ]
+}
+```
+
+Add `skills_used` as a top-level array in the session JSON alongside `accumulated_insights`.
+
+### Proactive Skill Discovery
+
+At the start of every session (Phase 0), scan available skills and note any that are relevant to the task type:
+
+```
+🔍 Available skills relevant to this task:
+   - [skill-name]: [one-line reason it may be useful]
+   - [skill-name]: [one-line reason it may be useful]
+   → Will invoke these at appropriate phases.
+```
+
+If no relevant skills are found beyond groundswell itself, state that briefly and continue.
